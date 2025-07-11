@@ -19,7 +19,18 @@ import {
   RefreshTokenInput,
   ResendOtpInput,
 } from '../inputs/auth.input';
-import { OtpType } from '@prisma/client';
+import { DeviceInfo } from '../../common/decorators/device-info.decorator';
+import {
+  AuthResponseDto,
+  RegisterResponseDto,
+  VerifyOtpResponseDto,
+  ForgotPasswordResponseDto,
+  ResetPasswordResponseDto,
+} from '../../common/dto/response.dto';
+import {
+  createGraphQLError,
+  USER_NOT_FOUND,
+} from '../../common/utils/graphql-errors';
 
 @Resolver()
 export class AuthResolver {
@@ -28,175 +39,213 @@ export class AuthResolver {
   @Mutation(() => RegisterResponse)
   async register(
     @Args('input') input: RegisterInput,
-    @Context() context: any,
+    @DeviceInfo() deviceInfo: { ipAddress: string; userAgent: string },
   ): Promise<RegisterResponse> {
-    const { req } = context;
-    const ipAddress = req.ip || req.connection.remoteAddress;
-    const userAgent = req.headers['user-agent'];
+    try {
+      const result = await this.authService.register(
+        {
+          email: input.email,
+          firstName: input.firstName,
+          lastName: input.lastName,
+          password: input.password,
+        },
+        deviceInfo.ipAddress,
+        deviceInfo.userAgent,
+      );
 
-    const result = await this.authService.register(
-      {
-        email: input.email,
-        firstName: input.firstName,
-        lastName: input.lastName,
-        password: input.password,
-      },
-      ipAddress,
-      userAgent,
-    );
-
-    return {
-      message: result.message,
-      userId: result.user.id,
-      emailSent: true,
-    };
+      return RegisterResponseDto.success(result.message, result.user.id);
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('already exists')) {
+        throw createGraphQLError(
+          'User with this email already exists',
+          'USER_ALREADY_EXISTS',
+          409,
+        );
+      }
+      throw error;
+    }
   }
 
   @Mutation(() => AuthResponse)
   async login(
     @Args('input') input: LoginInput,
-    @Context() context: any,
+    @DeviceInfo() deviceInfo: { ipAddress: string; userAgent: string },
   ): Promise<AuthResponse> {
-    const { req } = context;
-    const ipAddress = req.ip || req.connection.remoteAddress;
-    const userAgent = req.headers['user-agent'];
+    try {
+      const result = await this.authService.login(
+        {
+          email: input.email,
+          password: input.password,
+        },
+        deviceInfo.ipAddress,
+        deviceInfo.userAgent,
+      );
 
-    const result = await this.authService.login(
-      {
-        email: input.email,
-        password: input.password,
-      },
-      ipAddress,
-      userAgent,
-    );
-
-    return {
-      accessToken: result.accessToken,
-      refreshToken: result.refreshToken,
-      user: {
-        id: result.user.id,
-        email: result.user.email,
-        firstName: result.user.firstName,
-        lastName: result.user.lastName,
-        isEmailVerified: result.user.isEmailVerified,
-        isActive: result.user.isActive,
-        createdAt: result.user.createdAt,
-        updatedAt: result.user.updatedAt,
-      },
-      message: result.message,
-    };
+      return AuthResponseDto.fromAuthResult(result, result.user);
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        error.message.includes('Invalid credentials')
+      ) {
+        throw createGraphQLError(
+          'Invalid credentials',
+          'INVALID_CREDENTIALS',
+          401,
+        );
+      }
+      if (
+        error instanceof Error &&
+        error.message.includes('verify your email')
+      ) {
+        throw createGraphQLError(
+          'Please verify your email before logging in',
+          'EMAIL_NOT_VERIFIED',
+          403,
+        );
+      }
+      throw error;
+    }
   }
 
   @Mutation(() => VerifyOtpResponse)
   async verifyOtp(
     @Args('input') input: VerifyOtpInput,
-    @Context() context: any,
+    @DeviceInfo() deviceInfo: { ipAddress: string; userAgent: string },
   ): Promise<VerifyOtpResponse> {
-    const { req } = context;
-    const ipAddress = req.ip || req.connection.remoteAddress;
-    const userAgent = req.headers['user-agent'];
+    try {
+      const result = await this.authService.verifyOtp(
+        {
+          email: input.email,
+          code: input.otp,
+          type: input.type,
+        },
+        deviceInfo.ipAddress,
+        deviceInfo.userAgent,
+      );
 
-    const otpType = OtpType.EMAIL_VERIFICATION;
-
-    const result = await this.authService.verifyOtp(
-      {
-        email: input.email,
-        code: input.otp,
-        type: otpType,
-      },
-      ipAddress,
-      userAgent,
-    );
-
-    return {
-      message: result.message,
-      isVerified: true,
-    };
+      return VerifyOtpResponseDto.success(result.message);
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('Invalid OTP')) {
+        throw createGraphQLError('Invalid OTP', 'OTP_INVALID', 400);
+      }
+      if (error instanceof Error && error.message.includes('expired')) {
+        throw createGraphQLError('OTP has expired', 'OTP_EXPIRED', 410);
+      }
+      if (
+        error instanceof Error &&
+        error.message.includes('Maximum OTP attempts')
+      ) {
+        throw createGraphQLError(
+          'Maximum OTP attempts exceeded',
+          'TOO_MANY_ATTEMPTS',
+          429,
+        );
+      }
+      throw error;
+    }
   }
 
   @Mutation(() => ForgotPasswordResponse)
   async forgotPassword(
     @Args('input') input: ForgotPasswordInput,
-    @Context() context: any,
+    @DeviceInfo() deviceInfo: { ipAddress: string; userAgent: string },
   ): Promise<ForgotPasswordResponse> {
-    const { req } = context;
-    const ipAddress = req.ip || req.connection.remoteAddress;
-    const userAgent = req.headers['user-agent'];
+    try {
+      const result = await this.authService.forgotPassword(
+        {
+          email: input.email,
+        },
+        deviceInfo.ipAddress,
+        deviceInfo.userAgent,
+      );
 
-    const result = await this.authService.forgotPassword(
-      {
-        email: input.email,
-      },
-      ipAddress,
-      userAgent,
-    );
-
-    return {
-      message: result.message,
-      emailSent: true,
-    };
+      return ForgotPasswordResponseDto.success(result.message);
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('User not found')) {
+        throw createGraphQLError('User not found', USER_NOT_FOUND, 404);
+      }
+      throw error;
+    }
   }
 
   @Mutation(() => ResetPasswordResponse)
   async resetPassword(
     @Args('input') input: ResetPasswordInput,
-    @Context() context: any,
+    @DeviceInfo() deviceInfo: { ipAddress: string; userAgent: string },
   ): Promise<ResetPasswordResponse> {
-    const { req } = context;
-    const ipAddress = req.ip || req.connection.remoteAddress;
-    const userAgent = req.headers['user-agent'];
+    try {
+      const result = await this.authService.resetPassword(
+        {
+          email: input.email,
+          otp: input.otp,
+          newPassword: input.newPassword,
+        },
+        deviceInfo.ipAddress,
+        deviceInfo.userAgent,
+      );
 
-    const result = await this.authService.resetPassword(
-      {
-        email: input.email,
-        otp: input.otp,
-        newPassword: input.newPassword,
-      },
-      ipAddress,
-      userAgent,
-    );
-
-    return {
-      message: result.message,
-      success: true,
-    };
+      return ResetPasswordResponseDto.success(result.message);
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('Invalid OTP')) {
+        throw createGraphQLError('Invalid OTP', 'OTP_INVALID', 400);
+      }
+      if (error instanceof Error && error.message.includes('expired')) {
+        throw createGraphQLError('OTP has expired', 'OTP_EXPIRED', 410);
+      }
+      throw error;
+    }
   }
 
   @Mutation(() => RefreshTokenResponse)
   async refreshToken(
     @Args('input') input: RefreshTokenInput,
   ): Promise<RefreshTokenResponse> {
-    const result = await this.authService.refreshToken(input.refreshToken);
+    try {
+      const result = await this.authService.refreshToken(input.refreshToken);
 
-    return {
-      accessToken: result.accessToken,
-      refreshToken: result.refreshToken,
-      message: 'Token refreshed successfully',
-    };
+      return {
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken,
+        message: 'Token refreshed successfully',
+      };
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        error.message.includes('Invalid refresh token')
+      ) {
+        throw createGraphQLError(
+          'Invalid refresh token',
+          'INVALID_REFRESH_TOKEN',
+          401,
+        );
+      }
+      throw error;
+    }
   }
 
   @Mutation(() => ForgotPasswordResponse)
   async resendOtp(
     @Args('input') input: ResendOtpInput,
-    @Context() context: any,
+    @DeviceInfo() deviceInfo: { ipAddress: string; userAgent: string },
   ): Promise<ForgotPasswordResponse> {
-    const { req } = context;
-    const ipAddress = req.ip || req.connection.remoteAddress;
-    const userAgent = req.headers['user-agent'];
+    try {
+      const result = await this.authService.resendOtp(
+        input.email,
+        input.type,
+        deviceInfo.ipAddress,
+        deviceInfo.userAgent,
+      );
 
-    const otpType = OtpType.EMAIL_VERIFICATION;
-
-    const result = await this.authService.resendOtp(
-      input.email,
-      otpType,
-      ipAddress,
-      userAgent,
-    );
-
-    return {
-      message: result.message,
-      emailSent: true,
-    };
+      return ForgotPasswordResponseDto.success(result.message);
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('User not found')) {
+        throw createGraphQLError('User not found', USER_NOT_FOUND, 404);
+      }
+      if (error instanceof Error && error.message.includes('Please wait')) {
+        throw createGraphQLError(error.message, 'RESEND_COOLDOWN', 429);
+      }
+      throw error;
+    }
   }
 
   @Mutation(() => String)

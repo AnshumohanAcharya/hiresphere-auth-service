@@ -5,7 +5,9 @@ import {
   IsString,
   MinLength,
   IsOptional,
+  IsEnum,
 } from 'class-validator';
+import { OtpType } from '@prisma/client';
 
 @InputType()
 export class RegisterInput {
@@ -60,10 +62,10 @@ export class VerifyOtpInput {
   @IsNotEmpty()
   otp: string;
 
-  @Field()
-  @IsString()
+  @Field(() => String)
+  @IsEnum(OtpType)
   @IsNotEmpty()
-  type: string; // 'email' or 'phone'
+  type: OtpType;
 }
 
 @InputType()
@@ -107,8 +109,8 @@ export class ResendOtpInput {
   @IsNotEmpty()
   email: string;
 
-  @Field()
-  @IsString()
+  @Field(() => String)
+  @IsEnum(OtpType)
   @IsNotEmpty()
-  type: string; // 'email' or 'phone'
+  type: OtpType;
 }

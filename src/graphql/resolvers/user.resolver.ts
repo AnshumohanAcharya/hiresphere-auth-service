@@ -1,16 +1,18 @@
-import { Resolver, Query, Mutation, Args, Context } from '@nestjs/graphql';
+import { Resolver, Query, Args, Context, Int } from '@nestjs/graphql';
 import { UseGuards } from '@nestjs/common';
 import { UsersService } from '../../users/users.service';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../../auth/guards/roles.guard';
+import { Roles } from '../../auth/decorators/roles.decorator';
 import { User } from '../types/user.type';
-import { AuthService } from '../../auth/auth.service';
+import {
+  createGraphQLError,
+  USER_NOT_FOUND,
+} from '../../common/utils/graphql-errors';
 
 @Resolver(() => User)
 export class UserResolver {
-  constructor(
-    private readonly usersService: UsersService,
-    private readonly authService: AuthService,
-  ) {}
+  constructor(private readonly usersService: UsersService) {}
 
   @Query(() => User)
   @UseGuards(JwtAuthGuard)
@@ -20,7 +22,7 @@ export class UserResolver {
 
     const user = await this.usersService.findById(userId);
     if (!user) {
-      throw new Error('User not found');
+      throw createGraphQLError('User not found', USER_NOT_FOUND, 404);
     }
 
     return {
@@ -36,9 +38,16 @@ export class UserResolver {
   }
 
   @Query(() => [User])
-  @UseGuards(JwtAuthGuard)
-  async users(): Promise<User[]> {
-    const users = await this.usersService.findAll();
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
+  async users(
+    @Args('limit', { type: () => Int, nullable: true, defaultValue: 20 })
+    limit: number,
+    @Args('offset', { type: () => Int, nullable: true, defaultValue: 0 })
+    offset: number,
+    @Args('search', { type: () => String, nullable: true }) search?: string,
+  ): Promise<User[]> {
+    const users = await this.usersService.findAll({ limit, offset, search });
 
     return users.map((user) => ({
       id: user.id,
@@ -57,7 +66,7 @@ export class UserResolver {
   async user(@Args('id') id: string): Promise<User> {
     const user = await this.usersService.findById(id);
     if (!user) {
-      throw new Error('User not found');
+      throw createGraphQLError('User not found', USER_NOT_FOUND, 404);
     }
 
     return {
