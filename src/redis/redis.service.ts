@@ -34,19 +34,43 @@ export class RedisService {
 
   constructor(private configService: ConfigService) {
     // Initialize Redis connection
-    const config: RedisOptions = {
-      host: this.configService.get<string>('REDIS_HOST', 'localhost'),
-      port: this.configService.get<number>('REDIS_PORT', 6379),
-      password: this.configService.get<string>('REDIS_PASSWORD'),
-      db: this.configService.get<number>('REDIS_DB', 0),
-      lazyConnect: true,
-    };
+    const redisUrl = this.configService.get<string>('REDIS_URL');
 
-    this.client = new Redis(config);
+    let config: RedisOptions;
+
+    if (redisUrl) {
+      // Use REDIS_URL if provided (recommended for cloud Redis like Upstash)
+      config = {
+        lazyConnect: true,
+        maxRetriesPerRequest: 3,
+        enableReadyCheck: false,
+      };
+
+      // Create Redis client with URL
+      this.client = new Redis(redisUrl, config);
+    } else {
+      // Fallback to individual parameters
+      config = {
+        host: this.configService.get<string>('REDIS_HOST', 'localhost'),
+        port: this.configService.get<number>('REDIS_PORT', 6379),
+        password: this.configService.get<string>('REDIS_PASSWORD'),
+        db: this.configService.get<number>('REDIS_DB', 0),
+        lazyConnect: true,
+        maxRetriesPerRequest: 3,
+        enableReadyCheck: false,
+      };
+
+      this.client = new Redis(config);
+    }
 
     // Set up event listeners for connection monitoring
     this.client.on('error', (err) => this.logger.error('Redis error', err));
     this.client.on('connect', () => this.logger.log('Connected to Redis'));
+    this.client.on('ready', () => this.logger.log('Redis is ready'));
+    this.client.on('close', () => this.logger.warn('Redis connection closed'));
+    this.client.on('reconnecting', () =>
+      this.logger.log('Redis reconnecting...'),
+    );
   }
 
   // ============================================================================

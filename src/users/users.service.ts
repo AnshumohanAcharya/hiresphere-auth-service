@@ -186,4 +186,34 @@ export class UsersService {
 
     return user;
   }
+
+  async findAll(options?: {
+    limit?: number;
+    offset?: number;
+    search?: string;
+  }): Promise<UserResponse[]> {
+    const { limit = 20, offset = 0, search } = options || {};
+
+    const where = search
+      ? {
+          OR: [
+            { email: { contains: search, mode: 'insensitive' as const } },
+            { firstName: { contains: search, mode: 'insensitive' as const } },
+            { lastName: { contains: search, mode: 'insensitive' as const } },
+          ],
+        }
+      : {};
+
+    const users = await this.prisma.user.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+      skip: offset,
+    });
+
+    return users.map(
+      (user) =>
+        this.securityService.sanitizeUserData(user) as unknown as UserResponse,
+    );
+  }
 }

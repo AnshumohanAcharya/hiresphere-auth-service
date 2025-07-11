@@ -4,6 +4,9 @@ import { AuthModule } from './auth/auth.module';
 import { AuditLogInterceptor } from './common/interceptors/audit-log.interceptor';
 import { DatabaseModule } from './database/database.module';
 import { EmailModule } from './email/email.module';
+import { GraphQLModule as NestGraphQLModule } from '@nestjs/graphql';
+import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
+import { GraphQLModule } from './graphql/graphql.module';
 import { RedisModule } from './redis/redis.module';
 import { SecurityModule } from './security/security.module';
 import { UsersModule } from './users/users.module';
@@ -54,6 +57,27 @@ import { ThrottlerModule } from '@nestjs/throttler';
       },
     ]),
 
+    // GraphQL Configuration
+    NestGraphQLModule.forRoot<ApolloDriverConfig>({
+      driver: ApolloDriver,
+      autoSchemaFile: true, // Automatically generate schema from TypeScript classes
+      playground: true, // Enable GraphQL Playground in development
+      introspection: true, // Enable introspection for GraphQL Playground
+      context: ({ req }) => ({ req }), // Pass request context to resolvers
+      formatError: (error) => {
+        // Custom error formatting
+        const originalError = error.extensions?.originalError as any;
+        if (originalError) {
+          return {
+            message: originalError.message,
+            statusCode: originalError.statusCode,
+            error: originalError.error,
+          };
+        }
+        return error;
+      },
+    }),
+
     // Core Infrastructure Modules
     DatabaseModule, // Prisma database connection and service
     RedisModule, // Redis cache and session management
@@ -63,6 +87,7 @@ import { ThrottlerModule } from '@nestjs/throttler';
     UsersModule, // User CRUD operations and profile management
     EmailModule, // Email sending with templates
     SecurityModule, // Security utilities, OTP, and password validation
+    GraphQLModule, // GraphQL resolvers and types
   ],
   controllers: [AppController], // Root controller for health checks and metrics
   providers: [

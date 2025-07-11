@@ -4,7 +4,7 @@ import { RedisService } from './redis/redis.service';
 import { Controller, Get, HttpCode, HttpStatus } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 
-@ApiTags('health')
+@ApiTags('Health')
 @Controller()
 export class AppController {
   constructor(

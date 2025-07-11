@@ -1,12 +1,14 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { OtpType, User } from '@prisma/client';
 import { EmailService } from '../email/email.service';
+import { PrismaService } from '../database/prisma.service';
 import { RedisService } from '../redis/redis.service';
 import { EncryptionService } from '../security/encryption.service';
 import { SecurityService } from '../security/security.service';
@@ -41,9 +43,12 @@ export interface UserResponse {
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private readonly usersService: UsersService,
     private readonly emailService: EmailService,
+    private readonly prisma: PrismaService,
     private readonly encryptionService: EncryptionService,
     private readonly securityService: SecurityService,
     private readonly redisService: RedisService,
@@ -511,8 +516,11 @@ export class AuthService {
 
   async validateUser(email: string, password: string): Promise<User | null> {
     try {
-      // Ensure we get a User, not UserResponse
-      const user = (await this.usersService.findByEmail(email)) as User | null;
+      // Get the raw user from database for password comparison
+      const user = await this.prisma.user.findUnique({
+        where: { email },
+      });
+
       if (!user) {
         return null;
       }
@@ -527,7 +535,8 @@ export class AuthService {
       }
 
       return user;
-    } catch {
+    } catch (error) {
+      this.logger.error('Error validating user:', error);
       return null;
     }
   }

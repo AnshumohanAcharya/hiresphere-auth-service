@@ -1,66 +1,25 @@
-# 🚀 HireSphere Authentication Service
+# HireSphere Auth Service
 
-A production-ready, secure authentication service built with NestJS, featuring comprehensive security measures, Redis-based session management, and enterprise-grade OTP verification.
+A secure, scalable authentication service built with NestJS, GraphQL, and PostgreSQL.
 
-## 🛡️ Security Features
+## Features
 
-- **JWT Authentication** with secure refresh token rotation
-- **Redis-based OTP Management** with automatic expiration
-- **Progressive Rate Limiting** with intelligent blocking
-- **Device Tracking** for suspicious activity detection
-- **Comprehensive Audit Logging** for all operations
-- **Password Strength Validation** with configurable requirements
-- **Account Lockout** after multiple failed attempts
-- **Helmet Security Headers** for protection against common vulnerabilities
-- **CORS Protection** with configurable origins
-- **Request Validation** with automatic sanitization
+- 🔐 **GraphQL API** - Modern GraphQL interface for all authentication operations
+- 🛡️ **Security First** - JWT tokens, rate limiting, OTP verification, and audit logging
+- 📧 **Email Integration** - Automated email verification and password reset
+- 🗄️ **PostgreSQL** - Robust database with Prisma ORM
+- ⚡ **Redis Caching** - Fast session management and OTP storage
+- 📊 **Health Monitoring** - Comprehensive health checks and metrics
+- 🔍 **Audit Logging** - Complete request tracking and security events
 
-## 🏗️ Architecture
-
-```
-src/
-├── main.ts                 # Application bootstrap with security middleware
-├── app.module.ts          # Root module configuration
-├── app.controller.ts      # Health checks and metrics
-├── app.service.ts         # Basic application services
-├── auth/                  # Authentication module
-│   ├── auth.controller.ts # Auth endpoints (register, login, OTP, etc.)
-│   ├── auth.service.ts    # Authentication business logic
-│   ├── auth.module.ts     # Auth module configuration
-│   ├── guards/            # JWT and local authentication guards
-│   ├── strategies/        # Passport strategies
-│   └── dto/              # Data transfer objects for validation
-├── users/                 # User management module
-│   ├── users.service.ts   # User CRUD operations
-│   └── users.module.ts    # Users module configuration
-├── security/              # Security utilities module
-│   ├── security.service.ts # OTP, password validation, audit logging
-│   ├── encryption.service.ts # JWT, password hashing, token generation
-│   └── security.module.ts # Security module configuration
-├── redis/                 # Redis service module
-│   ├── redis.service.ts   # Centralized Redis operations
-│   └── redis.module.ts    # Redis module configuration
-├── email/                 # Email service module
-│   ├── email.service.ts   # Email sending with templates
-│   ├── email-templates.service.ts # HTML email templates
-│   └── email.module.ts    # Email module configuration
-├── database/              # Database module
-│   ├── prisma.service.ts  # Prisma database client
-│   └── database.module.ts # Database module configuration
-└── common/                # Shared utilities
-    ├── decorators/        # Custom decorators (RequestInfo, RateLimit)
-    ├── guards/            # Rate limiting guards
-    └── interceptors/      # Global interceptors (AuditLog)
-```
-
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 
 - Node.js 18+ 
-- PostgreSQL database
-- Redis server
-- SMTP email service (Gmail, SendGrid, etc.)
+- PostgreSQL 12+
+- Redis 6+
+- pnpm (recommended) or npm
 
 ### Installation
 
@@ -72,10 +31,10 @@ src/
 
 2. **Install dependencies**
    ```bash
-   npm install
+   pnpm install
    ```
 
-3. **Environment Configuration**
+3. **Environment Setup**
    ```bash
    cp .env.example .env
    # Edit .env with your configuration
@@ -83,131 +42,317 @@ src/
 
 4. **Database Setup**
    ```bash
-   # Generate Prisma client
-   npx prisma generate
-   
-   # Run database migrations
-   npx prisma migrate dev
-   
-   # Seed the database (optional)
-   npx prisma db seed
+   pnpm db:generate
+   pnpm db:migrate
+   pnpm db:seed
    ```
 
-5. **Start the application**
+5. **Start the service**
    ```bash
-   # Development
-   npm run start:dev
-   
-   # Production
-   npm run build
-   npm run start:prod
+   pnpm start:dev
    ```
 
-## 📋 Environment Variables
+The service will be available at:
+- **GraphQL Playground**: http://localhost:4000/graphql
+- **Health Check**: http://localhost:4000/health
+- **API Documentation**: http://localhost:4000/docs
+
+## GraphQL API
+
+### Authentication Mutations
+
+#### Register User
+```graphql
+mutation Register($input: RegisterInput!) {
+  register(input: $input) {
+    message
+    userId
+    emailSent
+  }
+}
+```
+
+#### Login
+```graphql
+mutation Login($input: LoginInput!) {
+  login(input: $input) {
+    accessToken
+    refreshToken
+    user {
+      id
+      email
+      firstName
+      lastName
+      isEmailVerified
+      isActive
+      createdAt
+      updatedAt
+    }
+    message
+  }
+}
+```
+
+#### Verify OTP
+```graphql
+mutation VerifyOtp($input: VerifyOtpInput!) {
+  verifyOtp(input: $input) {
+    message
+    isVerified
+  }
+}
+```
+
+#### Forgot Password
+```graphql
+mutation ForgotPassword($input: ForgotPasswordInput!) {
+  forgotPassword(input: $input) {
+    message
+    emailSent
+  }
+}
+```
+
+#### Reset Password
+```graphql
+mutation ResetPassword($input: ResetPasswordInput!) {
+  resetPassword(input: $input) {
+    message
+    success
+  }
+}
+```
+
+#### Refresh Token
+```graphql
+mutation RefreshToken($input: RefreshTokenInput!) {
+  refreshToken(input: $input) {
+    accessToken
+    refreshToken
+    message
+  }
+}
+```
+
+#### Logout
+```graphql
+mutation Logout {
+  logout
+}
+```
+
+### User Queries
+
+#### Get Current User
+```graphql
+query Me {
+  me {
+    id
+    email
+    firstName
+    lastName
+    isEmailVerified
+    isActive
+    createdAt
+    updatedAt
+  }
+}
+```
+
+#### Get All Users (Admin)
+```graphql
+query Users {
+  users {
+    id
+    email
+    firstName
+    lastName
+    isEmailVerified
+    isActive
+    createdAt
+    updatedAt
+  }
+}
+```
+
+#### Get User by ID
+```graphql
+query User($id: String!) {
+  user(id: $id) {
+    id
+    email
+    firstName
+    lastName
+    isEmailVerified
+    isActive
+    createdAt
+    updatedAt
+  }
+}
+```
+
+## Input Types
+
+### RegisterInput
+```graphql
+input RegisterInput {
+  email: String!
+  firstName: String!
+  lastName: String!
+  password: String!
+}
+```
+
+### LoginInput
+```graphql
+input LoginInput {
+  email: String!
+  password: String!
+}
+```
+
+### VerifyOtpInput
+```graphql
+input VerifyOtpInput {
+  email: String!
+  otp: String!
+  type: String!
+}
+```
+
+## Authentication
+
+### JWT Tokens
+- **Access Token**: Short-lived (15 minutes) for API access
+- **Refresh Token**: Long-lived (7 days) for token renewal
+
+### Headers
+Include the access token in GraphQL requests:
+```
+Authorization: Bearer <access_token>
+```
+
+## Security Features
+
+- **Rate Limiting**: Prevents abuse with configurable limits
+- **OTP Verification**: Email-based verification for registration and password reset
+- **Password Strength**: Enforces strong password requirements
+- **Audit Logging**: Tracks all authentication events
+- **Session Management**: Redis-based session storage with device tracking
+- **Security Headers**: Helmet.js for protection against common vulnerabilities
+
+## Environment Variables
 
 ```env
-# Database Configuration
-DATABASE_URL="postgresql://username:password@localhost:5432/hiresphere_auth?schema=public"
+# Server
+PORT=4000
+NODE_ENV=development
 
-# JWT Configuration
-JWT_SECRET="your-super-secret-jwt-key-here-make-it-very-long-and-random"
-JWT_EXPIRES_IN="15m"
-JWT_REFRESH_SECRET="your-super-secret-refresh-jwt-key-here-make-it-very-long-and-random"
-JWT_REFRESH_EXPIRES_IN="7d"
+# Database
+DATABASE_URL="postgresql://user:password@localhost:5432/hiresphere_auth"
 
-# Email Configuration (Gmail example)
-EMAIL_HOST="smtp.gmail.com"
-EMAIL_PORT=587
-EMAIL_SECURE=false
-EMAIL_USER="your-email@gmail.com"
-EMAIL_PASS="your-app-password"
-EMAIL_FROM="noreply@hiresphere.com"
-
-# OTP Configuration
-OTP_EXPIRES_IN=300000        # 5 minutes in milliseconds
-OTP_LENGTH=6
-OTP_MAX_ATTEMPTS=3
-OTP_RESEND_COOLDOWN=60000    # 1 minute in milliseconds
-
-# Security Configuration
-BCRYPT_ROUNDS=12
-MAX_FAILED_LOGIN_ATTEMPTS=5
-LOGIN_LOCKOUT_DURATION=900000    # 15 minutes
-LOGIN_RATE_LIMIT_WINDOW=900000   # 15 minutes
-
-# Rate Limiting
-RATE_LIMIT_WINDOW=900000         # 15 minutes in milliseconds
-RATE_LIMIT_MAX_REQUESTS=100
-SLOW_DOWN_WINDOW=900000          # 15 minutes in milliseconds
-SLOW_DOWN_DELAY_AFTER=50
-SLOW_DOWN_MAX_DELAY=20000
-
-# Application Configuration
-NODE_ENV="development"
-PORT=3000
-API_PREFIX="api/v1"
-FRONTEND_URL="http://localhost:3000"
-
-# Redis Configuration
+# Redis
 REDIS_URL="redis://localhost:6379"
 
-# Logging
-LOG_LEVEL="info"
+# JWT
+JWT_SECRET=your-jwt-secret
+JWT_REFRESH_SECRET=your-refresh-secret
+JWT_EXPIRES_IN=15m
+JWT_REFRESH_EXPIRES_IN=7d
+
+# Email
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your-email@gmail.com
+SMTP_PASS=your-app-password
+
+# Rate Limiting
+RATE_LIMIT_WINDOW=900000
+RATE_LIMIT_MAX_REQUESTS=100
+SLOW_DOWN_WINDOW=900000
+SLOW_DOWN_DELAY_AFTER=50
+SLOW_DOWN_MAX_DELAY=20000
 ```
 
-# Linting & Formatting
+## Development
+
+### Available Scripts
+
+```bash
+# Development
+pnpm start:dev          # Start in development mode
+pnpm start:debug        # Start with debugger
+
+# Production
+pnpm build              # Build the application
+pnpm start:prod         # Start in production mode
+
+# Database
+pnpm db:generate        # Generate Prisma client
+pnpm db:migrate         # Run database migrations
+pnpm db:studio          # Open Prisma Studio
+pnpm db:seed            # Seed the database
+
+# Code Quality
+pnpm lint               # Run ESLint
+pnpm format             # Format code with Prettier
+pnpm format:check       # Check code formatting
 ```
-npm run lint     # Run ESLint
-npm run lint:fix # Fix ESLint issues
-npm run format   # Format code with Prettier
+
+### Project Structure
+
+```
+src/
+├── auth/                 # Authentication logic
+│   ├── dto/             # Data transfer objects
+│   ├── guards/          # JWT and local auth guards
+│   └── strategies/      # Passport strategies
+├── common/              # Shared utilities
+│   ├── decorators/      # Custom decorators
+│   ├── guards/          # Rate limiting guards
+│   └── interceptors/    # Audit logging
+├── database/            # Database configuration
+├── email/               # Email service
+├── graphql/             # GraphQL implementation
+│   ├── inputs/          # GraphQL input types
+│   ├── resolvers/       # GraphQL resolvers
+│   └── types/           # GraphQL object types
+├── redis/               # Redis service
+├── security/            # Security utilities
+└── users/               # User management
 ```
 
-# Code Structure Best Practices
+## API Endpoints
 
-1. **Module Organization**: Each feature has its own module with clear separation of concerns
-2. **Service Layer**: Business logic is contained in services, not controllers
-3. **DTO Validation**: All inputs are validated using class-validator decorators
-4. **Error Handling**: Comprehensive error handling with proper HTTP status codes
-5. **Logging**: Structured logging with different levels (debug, info, error)
-6. **Security**: Security-first approach with multiple layers of protection
-7. **Documentation**: Comprehensive JSDoc comments for all public methods
+### REST Endpoints (Legacy)
+- `GET /health` - Health check
+- `GET /metrics` - Application metrics
+- `GET /docs` - API documentation (Swagger)
 
-# Security Considerations
+### GraphQL Endpoint
+- `POST /graphql` - GraphQL API
+- `GET /graphql` - GraphQL Playground (development)
 
-1. **Password Security**: Bcrypt hashing with configurable rounds
-2. **JWT Security**: Short-lived access tokens with secure refresh token rotation
-3. **Rate Limiting**: Multiple layers of rate limiting (express-rate-limit + custom Redis)
-4. **Input Validation**: Strict validation with whitelist approach
-5. **Audit Logging**: All operations are logged for security monitoring
-6. **Device Tracking**: Monitor suspicious login patterns
-7. **Account Lockout**: Progressive account lockout after failed attempts
+## Monitoring
 
-# 🤝 Contributing
+### Health Check
+```bash
+curl http://localhost:4000/health
+```
+
+### Metrics
+```bash
+curl http://localhost:4000/metrics
+```
+
+## Contributing
 
 1. Fork the repository
 2. Create a feature branch
 3. Make your changes
-4. Add tests for new functionality
-5. Ensure all tests pass
-6. Submit a pull request
+4. Add tests if applicable
+5. Submit a pull request
 
-### Code Style
+## License
 
-- Use TypeScript strict mode
-- Follow NestJS conventions
-- Add JSDoc comments for all public methods
-- Use meaningful variable and function names
-- Keep functions small and focused
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🆘 Support
-
-For support and questions:
-- Create an issue in the repository
-
----
-
-**Built with ❤️ by the HireSphere Team**
+This project is licensed under the MIT License.
