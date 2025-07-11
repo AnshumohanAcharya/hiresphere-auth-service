@@ -97,8 +97,10 @@ async function bootstrap() {
   });
 
   // Step 4: Global Configuration
-  // API prefix for versioning
-  app.setGlobalPrefix(configService.get('API_PREFIX', 'api/v1'));
+  // API prefix for versioning (only for REST endpoints)
+  app.setGlobalPrefix(configService.get('API_PREFIX', 'api/v1'), {
+    exclude: ['/graphql', '/health'],
+  });
 
   // Global validation pipe for request sanitization and transformation
   app.useGlobalPipes(
@@ -120,21 +122,20 @@ async function bootstrap() {
     )
     .setVersion('1.0')
     .addBearerAuth() // JWT authentication documentation
-    .addTag('auth', 'Authentication endpoints')
-    .addTag('users', 'User management endpoints')
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('docs', app, document);
 
   // Step 6: Start the server
-  const port = configService.get<number>('PORT', 3000);
+  const port = configService.get<number>('PORT', 4000);
   await app.listen(port);
 
   // Application startup information
-  console.log(`🚀 Application is running on: http://localhost:${port}/api/v1`);
-  console.log(`🔒 Health Check: http://localhost:${port}/api/v1/health`);
+  console.log(`🚀 Application is running on: http://localhost:${port}`);
+  console.log(`🔒 Health Check: http://localhost:${port}/health`);
   console.log(`📚 API Documentation: http://localhost:${port}/docs`);
+  console.log(`🔮 GraphQL Playground: http://localhost:${port}/graphql`);
   console.log(
     `🔐 Environment: ${configService.get('NODE_ENV', 'development')}`,
   );

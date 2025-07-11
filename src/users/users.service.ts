@@ -186,4 +186,15 @@ export class UsersService {
 
     return user;
   }
+
+  async findAll(): Promise<UserResponse[]> {
+    const users = await this.prisma.user.findMany({
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return users.map(
+      (user) =>
+        this.securityService.sanitizeUserData(user) as unknown as UserResponse,
+    );
+  }
 }
