@@ -39,7 +39,7 @@ import { UsersModule } from '../users/users.module';
       provide: APP_GUARD,
       useFactory: (configService: ConfigService) => {
         const isDevelopment = configService.get('NODE_ENV') === 'development';
-        return isDevelopment ? null : new JwtAuthGuard();
+        return isDevelopment ? null : new JwtAuthGuard(configService);
       },
       inject: [ConfigService],
     },

@@ -50,9 +50,15 @@ importers:
       '@prisma/client':
         specifier: ^6.11.1
         version: 6.11.1(prisma@6.11.1(typescript@5.8.3))(typescript@5.8.3)
+      '@types/body-parser':
+        specifier: ^1.19.6
+        version: 1.19.6
       bcryptjs:
         specifier: ^2.4.3
         version: 2.4.3
+      body-parser:
+        specifier: ^2.2.0
+        version: 2.2.0
       cache-manager:
         specifier: ^5.4.0
         version: 5.7.6

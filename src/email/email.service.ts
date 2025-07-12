@@ -199,3 +199,23 @@ Welcome to the HireSphere community!
     }
   }
 }
+
+/**
+ * Sample Usage:
+ *
+ * 1. Send OTP Email:
+ *    await emailService.sendOtpEmail(email, firstName, otp, 'EMAIL_VERIFICATION');
+ *    await emailService.sendOtpEmail(email, firstName, otp, 'PASSWORD_RESET');
+ *
+ * 2. Send Welcome Email:
+ *    await emailService.sendWelcomeEmail(email, firstName);
+ *
+ * 3. Send Custom Email:
+ *    await emailService.sendEmail(to, subject, htmlContent, textContent);
+ *
+ * 4. Verify Email Configuration:
+ *    const isValid = await emailService.verifyEmailConfiguration();
+ *    if (!isValid) {
+ *      // Handle invalid email configuration
+ *    }
+ */
