@@ -122,13 +122,11 @@ export class AuditLogInterceptor implements NestInterceptor {
     // Handle GraphQL context
     if (context.getType<string>() === 'graphql') {
       const gqlContext = GqlExecutionContext.create(context);
-      const req = gqlContext.getContext().req as AuthenticatedRequest | null;
-      return req;
+      return gqlContext.getContext().req as AuthenticatedRequest | null;
     }
 
     // Handle HTTP context
-    const req = context.switchToHttp().getRequest<AuthenticatedRequest>();
-    return req;
+    return context.switchToHttp().getRequest<AuthenticatedRequest>();
   }
 
   private getResponse(context: ExecutionContext): Response | null {

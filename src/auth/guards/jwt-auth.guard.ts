@@ -52,13 +52,11 @@ export class JwtAuthGuard implements CanActivate {
     // Handle GraphQL context
     if (context.getType<string>() === 'graphql') {
       const gqlContext = GqlExecutionContext.create(context);
-      const req = gqlContext.getContext().req as Request;
-      return req;
+      return gqlContext.getContext().req as Request;
     }
 
     // Handle HTTP context
-    const req = context.switchToHttp().getRequest<Request>();
-    return req;
+    return context.switchToHttp().getRequest<Request>();
   }
 
   private extractTokenFromHeader(request: Request): string | undefined {
