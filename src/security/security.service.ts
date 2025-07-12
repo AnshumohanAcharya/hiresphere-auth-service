@@ -288,3 +288,29 @@ export class SecurityService {
     return sanitizedUser;
   }
 }
+
+/**
+ * Sample Usage:
+ *
+ * 1. OTP Management:
+ *    const otp = await securityService.generateAndStoreOtp(userId, OtpType.EMAIL_VERIFICATION);
+ *    const result = await securityService.verifyOtp(userId, code, OtpType.EMAIL_VERIFICATION);
+ *    const resendResult = await securityService.resendOtp(userId, OtpType.EMAIL_VERIFICATION);
+ *
+ * 2. Account Security:
+ *    await securityService.handleFailedLogin(userId, ipAddress, userAgent);
+ *    const isLocked = await securityService.isAccountLocked(userId);
+ *    await securityService.resetFailedLoginAttempts(userId);
+ *
+ * 3. Password Validation:
+ *    const validation = securityService.validatePasswordStrength(password);
+ *    if (!validation.isValid) {
+ *      console.log('Password errors:', validation.errors);
+ *    }
+ *
+ * 4. Security Logging:
+ *    await securityService.logSecurityEvent(userId, 'LOGIN_ATTEMPT', { success: true }, ip, userAgent);
+ *
+ * 5. Data Sanitization:
+ *    const cleanUser = securityService.sanitizeUserData(userData);
+ */

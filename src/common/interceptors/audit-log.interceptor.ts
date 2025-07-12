@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { Observable } from 'rxjs';
 import { catchError, tap } from 'rxjs/operators';
+import { GqlExecutionContext } from '@nestjs/graphql';
 import { SecurityService } from '../../security/security.service';
 
 import {
@@ -54,18 +55,24 @@ export class AuditLogInterceptor implements NestInterceptor {
   constructor(private readonly securityService: SecurityService) {}
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
-    const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
-    const response = context.switchToHttp().getResponse<Response>();
+    const request = this.getRequest(context);
+    const response = this.getResponse(context);
     const startTime = Date.now();
 
-    // Extract request information with proper typing
+    // Add null check for request
+    if (!request) {
+      this.logger.warn('Request object is undefined in AuditLogInterceptor');
+      return next.handle();
+    }
+
+    // Extract request information with proper typing and null checks
     const ip = this.getClientIp(request);
-    const userAgent = this.getUserAgent(request.headers);
-    const method = request.method;
-    const url = request.url;
-    const userId = request.user?.id;
-    const requestHeaders = this.sanitizeHeaders(request.headers);
-    const requestBody = this.sanitizeRequestBody(request.body);
+    const userAgent = this.getUserAgent(request?.headers || {});
+    const method = request?.method || 'UNKNOWN';
+    const url = request?.url || 'unknown';
+    const userId = request?.user?.id;
+    const requestHeaders = this.sanitizeHeaders(request?.headers || {});
+    const requestBody = this.sanitizeRequestBody(request?.body);
 
     // Log successful requests
     const successHandler = tap(() => {
@@ -79,7 +86,7 @@ export class AuditLogInterceptor implements NestInterceptor {
         userId,
         requestHeaders,
         requestBody,
-        responseStatus: response.statusCode,
+        responseStatus: response?.statusCode || 200,
         responseTime,
       };
 
@@ -111,13 +118,68 @@ export class AuditLogInterceptor implements NestInterceptor {
     return next.handle().pipe(successHandler, errorHandler);
   }
 
+  private getRequest(context: ExecutionContext): AuthenticatedRequest | null {
+    // Handle GraphQL context
+    if (context.getType<string>() === 'graphql') {
+      const gqlContext = GqlExecutionContext.create(context);
+      const req = gqlContext.getContext().req as AuthenticatedRequest | null;
+      return req;
+    }
+
+    // Handle HTTP context
+    const req = context.switchToHttp().getRequest<AuthenticatedRequest>();
+    return req;
+  }
+
+  private getResponse(context: ExecutionContext): Response | null {
+    // Handle GraphQL context
+    if (context.getType<string>() === 'graphql') {
+      const gqlContext = GqlExecutionContext.create(context);
+      const res = gqlContext.getContext().res as Response | null;
+      return res;
+    }
+
+    // Handle HTTP context
+    const res = context.switchToHttp().getResponse<Response>();
+    return res;
+  }
+
   private getClientIp(request: AuthenticatedRequest): string {
-    return (
-      request.ip ||
-      request.socket?.remoteAddress ||
-      (request.headers['x-forwarded-for'] as string)?.split(',')[0] ||
-      'unknown'
-    );
+    try {
+      // Check if request exists and has ip property
+      if (request && request.ip) {
+        return request.ip;
+      }
+
+      // Check if socket exists and has remoteAddress
+      if (request?.socket?.remoteAddress) {
+        return request.socket.remoteAddress;
+      }
+
+      // Check for x-forwarded-for header
+      const forwardedFor = request?.headers?.['x-forwarded-for'];
+      if (forwardedFor && typeof forwardedFor === 'string') {
+        return forwardedFor.split(',')[0].trim();
+      }
+
+      // Check for x-real-ip header (common with nginx)
+      const realIp = request?.headers?.['x-real-ip'];
+      if (realIp && typeof realIp === 'string') {
+        return realIp;
+      }
+
+      // Check for cf-connecting-ip header (Cloudflare)
+      const cfIp = request?.headers?.['cf-connecting-ip'];
+      if (cfIp && typeof cfIp === 'string') {
+        return cfIp;
+      }
+
+      // Fallback to localhost for development
+      return '127.0.0.1';
+    } catch (error) {
+      this.logger.warn('Error getting client IP, using fallback', error);
+      return '127.0.0.1';
+    }
   }
 
   private getUserAgent(headers: RequestHeaders): string {

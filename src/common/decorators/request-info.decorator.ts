@@ -20,22 +20,7 @@ interface RequestWithUser extends Request {
   };
 }
 
-/**
- * Custom decorator to automatically extract comprehensive request information
- *
- * @example
- * ```typescript
- * @Post('register')
- * async register(
- *   @Body() registerDto: RegisterDto,
- *   @RequestInfo() requestInfo: RequestInfo
- * ) {
- *   console.log('IP:', requestInfo.ip);
- *   console.log('User Agent:', requestInfo.userAgent);
- *   console.log('Referer:', requestInfo.referer);
- * }
- * ```
- */
+// Custom decorator to extract request information
 export const RequestInfo = createParamDecorator(
   (data: unknown, ctx: ExecutionContext): RequestInfo => {
     const request = ctx.switchToHttp().getRequest<RequestWithUser>();

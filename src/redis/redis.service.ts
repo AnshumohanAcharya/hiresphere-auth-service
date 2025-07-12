@@ -103,18 +103,6 @@ export class RedisService {
     }
   }
 
-  /**
-   * Retrieve OTP data from Redis
-   *
-   * @param key - Redis key for the OTP
-   * @returns OTP data or null if not found
-   *
-   * @example
-   * const otpData = await redisService.getOtp('otp:user123:EMAIL_VERIFICATION');
-   * if (otpData && otpData.code === '123456') {
-   *   // OTP is valid
-   * }
-   */
   async getOtp(key: string): Promise<OtpData | null> {
     try {
       const data = await this.client.get(key);
@@ -125,14 +113,6 @@ export class RedisService {
     }
   }
 
-  /**
-   * Delete OTP data from Redis (used after successful verification)
-   *
-   * @param key - Redis key for the OTP
-   *
-   * @example
-   * await redisService.deleteOtp('otp:user123:EMAIL_VERIFICATION');
-   */
   async deleteOtp(key: string): Promise<void> {
     try {
       await this.client.del(key);
@@ -142,18 +122,6 @@ export class RedisService {
     }
   }
 
-  /**
-   * Increment OTP verification attempts and update the stored data
-   *
-   * @param key - Redis key for the OTP
-   * @returns Updated number of attempts
-   *
-   * @example
-   * const attempts = await redisService.incrementOtpAttempts('otp:user123:EMAIL_VERIFICATION');
-   * if (attempts >= 3) {
-   *   // Block further attempts
-   * }
-   */
   async incrementOtpAttempts(key: string): Promise<number> {
     try {
       const otpData = await this.getOtp(key);
@@ -171,25 +139,6 @@ export class RedisService {
     }
   }
 
-  // ============================================================================
-  // RATE LIMITING
-  // ============================================================================
-
-  /**
-   * Check and update rate limiting for a given key
-   * Implements progressive blocking based on excess attempts
-   *
-   * @param key - Rate limit key (usually IP or user ID)
-   * @param limit - Maximum allowed requests in the window
-   * @param windowMs - Time window in milliseconds
-   * @returns Rate limit data with current state
-   *
-   * @example
-   * const rateLimitData = await redisService.checkRateLimit('rate_limit:login:192.168.1.1', 5, 900000);
-   * if (rateLimitData.blocked) {
-   *   throw new Error('Too many requests, please try again later');
-   * }
-   */
   async checkRateLimit(
     key: string,
     limit: number,
@@ -586,27 +535,11 @@ export class RedisService {
     }
   }
 
-  // ============================================================================
-  // UTILITY METHODS
-  // ============================================================================
-
-  /**
-   * Get OTP time-to-live from configuration
-   *
-   * @returns TTL in seconds
-   */
   private getOtpTtl(): number {
-    return this.configService.get('OTP_EXPIRES_IN', 300000) / 1000; // Convert to seconds
+    return this.configService.get('OTP_EXPIRES_IN', 300000) / 1000;
   }
 
-  /**
-   * Calculate progressive block duration based on excess attempts
-   *
-   * @param excessAttempts - Number of attempts over the limit
-   * @returns Block duration in milliseconds
-   */
   private getBlockDuration(excessAttempts: number): number {
-    // Progressive blocking: 1min, 5min, 15min, 30min, 1hour, 2hours, 4hours, 8hours, 24hours
     const durations = [
       60000, 300000, 900000, 1800000, 3600000, 7200000, 14400000, 28800000,
       86400000,
@@ -615,98 +548,26 @@ export class RedisService {
     return durations[index];
   }
 
-  // ============================================================================
-  // KEY GENERATION
-  // ============================================================================
-
-  /**
-   * Generate OTP Redis key
-   *
-   * @param userId - User ID
-   * @param type - OTP type
-   * @returns Redis key for OTP storage
-   *
-   * @example
-   * const key = redisService.generateOtpKey('user123', OtpType.EMAIL_VERIFICATION);
-   * // Returns: 'otp:user123:EMAIL_VERIFICATION'
-   */
   generateOtpKey(userId: string, type: OtpType): string {
     return `otp:${userId}:${type}`;
   }
 
-  /**
-   * Generate rate limit Redis key
-   *
-   * @param identifier - IP address or user ID
-   * @param action - Action being rate limited
-   * @returns Redis key for rate limiting
-   *
-   * @example
-   * const key = redisService.generateRateLimitKey('192.168.1.1', 'login');
-   * // Returns: 'rate_limit:login:192.168.1.1'
-   */
   generateRateLimitKey(identifier: string, action: string): string {
     return `rate_limit:${action}:${identifier}`;
   }
 
-  /**
-   * Generate session Redis key
-   *
-   * @param userId - User ID
-   * @returns Redis key for session storage
-   *
-   * @example
-   * const key = redisService.generateSessionKey('user123');
-   * // Returns: 'session:user123'
-   */
   generateSessionKey(userId: string): string {
     return `session:${userId}`;
   }
 
-  /**
-   * Generate failed login attempts Redis key
-   *
-   * @param identifier - IP address or user ID
-   * @returns Redis key for failed login tracking
-   *
-   * @example
-   * const key = redisService.generateFailedLoginKey('192.168.1.1');
-   * // Returns: 'failed_login:192.168.1.1'
-   */
   generateFailedLoginKey(identifier: string): string {
     return `failed_login:${identifier}`;
   }
 
-  /**
-   * Generate refresh token Redis key
-   *
-   * @param userId - User ID
-   * @param tokenId - Token identifier
-   * @returns Redis key for refresh token storage
-   *
-   * @example
-   * const key = redisService.generateRefreshTokenKey('user123', 'token456');
-   * // Returns: 'refresh_token:user123:token456'
-   */
   generateRefreshTokenKey(userId: string, tokenId: string): string {
     return `refresh_token:${userId}:${tokenId}`;
   }
 
-  // ============================================================================
-  // HEALTH MONITORING
-  // ============================================================================
-
-  /**
-   * Check Redis connection health
-   *
-   * @returns True if Redis is responding, false otherwise
-   *
-   * @example
-   * const isHealthy = await redisService.ping();
-   * if (!isHealthy) {
-   *   // Handle Redis connection issues
-   * }
-   */
   async ping(): Promise<boolean> {
     try {
       const result = await this.client.ping();
@@ -717,15 +578,6 @@ export class RedisService {
     }
   }
 
-  /**
-   * Clean up Redis connection on application shutdown
-   *
-   * @example
-   * process.on('SIGTERM', async () => {
-   *   await redisService.cleanup();
-   *   process.exit(0);
-   * });
-   */
   async cleanup(): Promise<void> {
     try {
       await this.client.quit();
