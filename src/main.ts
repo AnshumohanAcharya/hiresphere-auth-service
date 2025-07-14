@@ -1,8 +1,9 @@
 import * as compression from 'compression';
+import * as cookieParser from 'cookie-parser';
+import * as express from 'express';
 import rateLimit from 'express-rate-limit';
 import slowDown from 'express-slow-down';
 import helmet from 'helmet';
-import * as express from 'express';
 
 import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -16,6 +17,7 @@ async function bootstrap() {
 
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+  app.use(cookieParser());
 
   // Security middleware
   app.use(

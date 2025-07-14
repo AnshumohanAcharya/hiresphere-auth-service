@@ -8,6 +8,7 @@ import {
   Post,
   Request,
   UseGuards,
+  Res,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -30,6 +31,8 @@ import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { ResendOtpDto } from './dto/resend-otp.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { Response } from 'express';
+import { CookieService } from '../utils/cookie.service';
 
 // Define proper interfaces for request objects
 interface AuthenticatedRequest extends Request {
@@ -46,6 +49,7 @@ export class AuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly usersService: UsersService,
+    private readonly cookieService: CookieService,
   ) {}
 
   @Post('register')
@@ -84,12 +88,28 @@ export class AuthController {
   async login(
     @Body() loginDto: LoginDto,
     @RequestInfo() requestInfo: RequestInfoDto,
+    @Res() res: Response,
   ) {
-    return this.authService.login(
+    const result = await this.authService.login(
       loginDto,
       requestInfo.ip,
       requestInfo.userAgent,
     );
+
+    // Set cookies
+    this.cookieService.setResponse(res);
+    this.cookieService.setCookie('accessToken', result.accessToken, {
+      httpOnly: false, // Set to false for testing
+      secure: false, // Set to false for development
+      maxAge: 15 * 60, // 15 minutes
+    });
+
+    this.cookieService.setCookie('refreshToken', result.refreshToken, {
+      httpOnly: false, // Set to false for testing
+      secure: false, // Set to false for development
+      maxAge: 7 * 24 * 60 * 60, // 7 days
+    });
+    return res.json(result);
   }
 
   @Post('verify-otp')
@@ -190,8 +210,29 @@ export class AuthController {
     description: 'New access token generated',
   })
   @ApiResponse({ status: 401, description: 'Invalid refresh token' })
-  async refreshToken(@Body() refreshTokenDto: RefreshTokenDto) {
-    return this.authService.refreshToken(refreshTokenDto.refreshToken);
+  async refreshToken(
+    @Body() refreshTokenDto: RefreshTokenDto,
+    @Res() res: Response,
+  ) {
+    const result = await this.authService.refreshToken(
+      refreshTokenDto.refreshToken,
+    );
+
+    // Set new cookies
+    this.cookieService.setResponse(res);
+    this.cookieService.setCookie('accessToken', result.accessToken, {
+      httpOnly: false, // Set to false for testing
+      secure: false, // Set to false for development
+      maxAge: 15 * 60, // 15 minutes
+    });
+
+    this.cookieService.setCookie('refreshToken', result.refreshToken, {
+      httpOnly: false, // Set to false for testing
+      secure: false, // Set to false for development
+      maxAge: 7 * 24 * 60 * 60, // 7 days
+    });
+
+    return res.json(result);
   }
 
   @Post('logout')
@@ -203,8 +244,12 @@ export class AuthController {
     status: 200,
     description: 'Logout successful',
   })
-  async logout(@Request() req: AuthenticatedRequest) {
-    return this.authService.logout(req.user.id);
+  async logout(@Request() req: AuthenticatedRequest, @Res() res: Response) {
+    this.cookieService.setResponse(res);
+    this.cookieService.clearCookie('access_token');
+    this.cookieService.clearCookie('refresh_token');
+    const result = await this.authService.logout(req.user.id);
+    return res.json(result);
   }
 
   @Get('profile')

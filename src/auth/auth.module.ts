@@ -13,6 +13,7 @@ import { EmailModule } from '../email/email.module';
 import { RedisModule } from '../redis/redis.module';
 import { SecurityModule } from '../security/security.module';
 import { UsersModule } from '../users/users.module';
+import { CookieService } from '../utils/cookie.service';
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { UsersModule } from '../users/users.module';
     AuthService,
     LocalStrategy,
     JwtStrategy,
+    CookieService,
     {
       provide: APP_GUARD,
       useFactory: (configService: ConfigService) => {
